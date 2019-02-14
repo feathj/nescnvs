@@ -110,10 +110,16 @@ LoadPalettesLoop:
   CPX #$20              ; Compare X to hex $20
   BNE LoadPalettesLoop  ; Branch to LoadPalettesLoop if compare was Not Equal to zero
 
+;; END BOILERPLATE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+InitializeState:
+  LDA #$80
+  STA logox
+  STA logoy
+
 ;; Start forever loop. Interrrupted by NMI
 Forever:
   JMP Forever
-;; END BOILERPLATE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Main loop
 MAINLOOP:
@@ -133,15 +139,28 @@ MAINLOOP:
 
 ;; Main draw routine
 Draw:
-  ;; Tile 0
-  LDA #$80
-  STA $0200
-  STA $0203
-  LDA #$41
-  STA $0201
-  LDA #$10
-  STA $0202
-RTS
+	JSR DrawLogo
+	RTS
+
+;  ;; Tile 0
+;  LDA #$80
+;  STA $0200
+;  STA $0203
+;  LDA #$41
+;  STA $0201
+;  LDA #$10
+;  STA $0202
+
+DrawLogo:
+  LDX #$00
+DrawLogoLoop:
+  LDA logosprite, x
+  STA $0200, x
+  INX
+  CPX #$0B
+  BNE DrawLogoLoop
+
+  RTS
 
 ;; Main update routine
 Update:
@@ -156,6 +175,36 @@ PaletteData:
   .db $0F,$30,$26,$05, $0F,$13,$23,$33, $0F,$1C,$2B,$39, $0F,$06,$15,$36
   ;; Character Palletes (0-3)
   .db $0F,$30,$26,$05, $0F,$13,$23,$33, $0F,$1C,$2B,$39, $0F,$06,$15,$36
+
+logosprite:
+; 1st byte encodes the y position
+; 2nd byte encodes the tile index loaded into the PPU 
+; 3rd byte encodes any sprite attributes
+;  76543210
+;  |||   ||
+;  |||   ++- Color Palette of sprite.  Choose which set of 4 from the 16 colors to use
+;  |||
+;  ||+------ Priority (0: in front of background; 1: behind background)
+;  |+------- Flip sprite horizontally
+;  +-------- Flip sprite vertically
+; 4th byte encodes the x position
+
+;; Logo is 6x6 sprites, 36 total
+
+     ;vert tile attr horiz
+  .db $80, $00, $00, $80
+  .db $80, $01, $00, $88
+  .db $80, $02, $00, $90
+  .db $80, $03, $00, $98
+  .db $80, $04, $00, $A0
+  .db $80, $05, $00, $A8
+
+  .db $88, $10, $00, $80
+  .db $88, $11, $00, $88
+  .db $88, $12, $00, $90
+  .db $88, $13, $00, $98
+  .db $88, $14, $00, $A0
+  .db $88, $15, $00, $A8
 
 ;;; BANK 2 AND OUR PICTURE DATA
   ;; Bank 2 will be starting at $0000 and in it we will include our picture data for backgrounds and sprites
