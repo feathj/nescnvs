@@ -16,8 +16,6 @@
 ;playerx           .rs 1 ; Xpos for player
 ;playery           .rs 1 ; Ypos for player
 ; TODO: Add vars here
-logox      .rs 1
-logoy      .rs 1
 
 ;; Reset
   .bank 0               ; NESASM arranges things into 8KB chunks, this is chunk 0
@@ -25,34 +23,11 @@ logoy      .rs 1
 RESET:
   SEI                   ; disable IRQs
   CLD                   ; disable decimal mode, meant to make decimal arithmetic "easier"
-  LDX #$40
-  STX $4017             ; disable APU frame IRQ
-  LDX #$FF
-  TXS                   ; Set up stack
-  INX                   ; now X = 0
-  STX $2000             ; disable NMI
-  STX $2001             ; disable rendering
-  STX $4010             ; disable DMC IRQs
 
 vblankwait1:            ; First wait for vblank to make sure PPU is ready
   BIT $2002
   BPL vblankwait1
 
-;; Helper to wipe memory
-clrmem:
-  LDA #$00
-  STA $0000, x
-  STA $0100, x
-  STA $0300, x
-  STA $0400, x
-  STA $0500, x
-  STA $0600, x
-  STA $0700, x
-  LDA #$FE
-  STA $0200, x          ; move all sprites off screen
-  INX
-  BNE clrmem
-   
 vblankwait2:            ; Second wait for vblank, PPU is ready after this
   BIT $2002
   BPL vblankwait2
@@ -70,7 +45,7 @@ vblankwait2:            ; Second wait for vblank, PPU is ready after this
 ;  |
 ;  +-------- Generate an NMI at the start of the
 ;            vertical blanking interval vblank (0: off; 1: on)              
-  LDA #%10010000   ; enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
+  LDA #%10010000
   STA $2000
 
 ;  PPUMASK ($2001)
@@ -87,7 +62,7 @@ vblankwait2:            ; Second wait for vblank, PPU is ready after this
 ;  ||+------ Intensify reds (and darken other colors)
 ;  |+------- Intensify greens (and darken other colors)
 ;  +-------- Intensify blues (and darken other colors)
-  LDA #%00011110   ; enable sprites, enable background, no clipping on left side
+  LDA #%00011110
   STA $2001
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -110,12 +85,15 @@ LoadPalettesLoop:
   CPX #$20              ; Compare X to hex $20
   BNE LoadPalettesLoop  ; Branch to LoadPalettesLoop if compare was Not Equal to zero
 
+LoadSprite:
+  LDX #$00
+LoadSpriteLoop:
+  LDA logosprite, x
+  STA $0200, x
+  INX
+  CPX #$78
+  BNE LoadSpriteLoop
 ;; END BOILERPLATE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-InitializeState:
-  LDA #$80
-  STA logox
-  STA logoy
 
 ;; Start forever loop. Interrrupted by NMI
 Forever:
@@ -125,10 +103,10 @@ Forever:
 MAINLOOP:
   ;; Load graphics into PPU from memory
   ;; Needs to be done every frame
-  LDA #$00
-  STA $2003
-  LDA #$02
-  STA $4014
+	LDA #$00
+	STA $2003
+	LDA #$02
+	STA $4014
 
   ;; Run draw logic first
   JSR Draw
@@ -139,28 +117,7 @@ MAINLOOP:
 
 ;; Main draw routine
 Draw:
-	JSR DrawLogo
 	RTS
-
-;  ;; Tile 0
-;  LDA #$80
-;  STA $0200
-;  STA $0203
-;  LDA #$41
-;  STA $0201
-;  LDA #$10
-;  STA $0202
-
-DrawLogo:
-  LDX #$00
-DrawLogoLoop:
-  LDA logosprite, x
-  STA $0200, x
-  INX
-  CPX #$0B
-  BNE DrawLogoLoop
-
-  RTS
 
 ;; Main update routine
 Update:
@@ -189,22 +146,43 @@ logosprite:
 ;  +-------- Flip sprite vertically
 ; 4th byte encodes the x position
 
-;; Logo is 6x6 sprites, 36 total
-
      ;vert tile attr horiz
-  .db $80, $00, $00, $80
-  .db $80, $01, $00, $88
-  .db $80, $02, $00, $90
-  .db $80, $03, $00, $98
-  .db $80, $04, $00, $A0
-  .db $80, $05, $00, $A8
+	.db $80, $00, $00, $80
+	.db $80, $01, $00, $88
+	.db $80, $02, $00, $90
+	.db $80, $03, $40, $98
+	.db $80, $04, $40, $A0
+	.db $80, $05, $40, $A8
 
-  .db $88, $10, $00, $80
-  .db $88, $11, $00, $88
-  .db $88, $12, $00, $90
-  .db $88, $13, $00, $98
-  .db $88, $14, $00, $A0
-  .db $88, $15, $00, $A8
+	.db $88, $10, $00, $80
+	.db $88, $11, $00, $88
+	.db $88, $12, $00, $90
+	.db $88, $13, $40, $98
+	.db $88, $14, $40, $A0
+	.db $88, $15, $40, $A8
+
+	.db $90, $20, $80, $80
+	.db $90, $21, $80, $88
+	.db $90, $22, $80, $90
+	.db $90, $23, $C0, $98
+	.db $90, $24, $C0, $A0
+	.db $90, $25, $C0, $A8
+
+	.db $98, $30, $80, $80
+	.db $98, $31, $80, $88
+	.db $98, $32, $80, $90
+	.db $98, $33, $C0, $98
+	.db $98, $34, $C0, $A0
+	.db $98, $35, $C0, $A8
+
+;;; CANVAS
+
+	.db $A0, $40, $00, $80
+	.db $A0, $41, $00, $88
+	.db $A0, $42, $00, $90
+	.db $A0, $43, $00, $98
+	.db $A0, $44, $00, $A0
+	.db $A0, $45, $00, $A8
 
 ;;; BANK 2 AND OUR PICTURE DATA
   ;; Bank 2 will be starting at $0000 and in it we will include our picture data for backgrounds and sprites
