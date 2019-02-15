@@ -4,7 +4,7 @@
   .inesmap 0            ; mapper 0 = NROM, no bank swapping
   .inesmir 1            ; background mirroring
 
-;; Register interrupts
+;; Bank 1 - Register interrupts
   .bank 1
   .org $FFFA            ; first of 3 special addresses starts here
   .dw MAINLOOP          ; jmp to NMI label on NMI interrupt
@@ -32,6 +32,7 @@ vblankwait2:            ; Second wait for vblank, PPU is ready after this
   BIT $2002
   BPL vblankwait2
 
+;; Set PPUCTRL and PPUMASK
 ;  PPUCTRL ($2000)
 ;  76543210
 ;  | ||||||
@@ -65,8 +66,7 @@ vblankwait2:            ; Second wait for vblank, PPU is ready after this
   LDA #%00011110
   STA $2001
 
-;;;;;;;;;;;;;;;;;;;;;;
-; Load game pallets
+;; Load game pallets
 LoadPalettes:
   LDA $2002             ; read PPU status to reset the high/low latch
   LDA #$3F              ; max out 0011 1111
@@ -75,16 +75,13 @@ LoadPalettes:
   STA $2006             ; write the low byte of $3F00 address
   LDX #$00              ; start out at 0
 LoadPalettesLoop:
-  LDA PaletteData, x    ; load data from address (palette + the value in x)
-                          ; 1st time through loop it will load palette+0
-                          ; 2nd time through loop it will load palette+1
-                          ; 3rd time through loop it will load palette+2
-                          ; etc
+  LDA palletdata, x     ; load data from address (palette + the value in x)
   STA $2007             ; write to PPU
-  INX                   ; X = X + 1
-  CPX #$20              ; Compare X to hex $20
-  BNE LoadPalettesLoop  ; Branch to LoadPalettesLoop if compare was Not Equal to zero
+  INX
+  CPX #$20
+  BNE LoadPalettesLoop
 
+;; Load game sprites
 LoadSprite:
   LDX #$00
 LoadSpriteLoop:
@@ -93,7 +90,6 @@ LoadSpriteLoop:
   INX
   CPX #$78
   BNE LoadSpriteLoop
-;; END BOILERPLATE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Start forever loop. Interrrupted by NMI
 Forever:
@@ -117,16 +113,18 @@ MAINLOOP:
 
 ;; Main draw routine
 Draw:
+;; TODO: Modify sprite positions etc. based on state
 	RTS
 
 ;; Main update routine
 Update:
-RTS
+;; TODO: Grab controller state and modify game state
+  RTS
 
-;; Pallet and sprite data defs
+;; Bank 1 - Pallet and sprite data defs
   .bank 1
   .org $E000
-PaletteData:
+palletdata:
   ;; Background Pallets (0-3)
   ;; Random pallets that I just took from YY-CHR
   .db $0F,$30,$26,$05, $0F,$13,$23,$33, $0F,$1C,$2B,$39, $0F,$06,$15,$36
@@ -175,7 +173,7 @@ logosprite:
 	.db $98, $34, $C0, $A0
 	.db $98, $35, $C0, $A8
 
-;;; CANVAS
+;; CANVAS
 
 	.db $A0, $40, $00, $80
 	.db $A0, $41, $00, $88
@@ -184,10 +182,8 @@ logosprite:
 	.db $A0, $44, $00, $A0
 	.db $A0, $45, $00, $A8
 
-;;; BANK 2 AND OUR PICTURE DATA
-  ;; Bank 2 will be starting at $0000 and in it we will include our picture data for backgrounds and sprites
-  .bank 2                       ; Change to bank 2
-  .org $0000                    ; start at $0000
-  .incbin "cnvs.chr"           ; INClude BINary
-
+;; Bank 2 - (load chr file)
+  .bank 2
+  .org $0000
+  .incbin "cnvs.chr"
 
